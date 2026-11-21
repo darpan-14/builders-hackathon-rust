@@ -1,0 +1,34 @@
+name: Compare Rust and C++ on x64
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build both production images
+        run: |
+          docker build -t shopping-rust .
+          git init -q "$RUNNER_TEMP/cpp"
+          git -C "$RUNNER_TEMP/cpp" fetch -q --depth 1 https://github.com/darpan-14/builders-hackathon.git 57f180853a5bcde76d07d7591ad4fee6c0711fbe
+          git -C "$RUNNER_TEMP/cpp" checkout -q --detach FETCH_HEAD
+          docker build -t shopping-cpp "$RUNNER_TEMP/cpp"
+      - name: Prepare official generator and checker
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL --retry 3 https://www.joinbuilders.org/buildathon/tracks/shopping-sessions/files/generator.zip -o generator.zip
+          echo '13724cadbac5a99d847e27cea911cd2e338ff972b46c2039da87452011bb101e  generator.zip' | sha256sum -c -
+          unzip -q generator.zip
+          rustc --edition=2024 -O generator/src/main.rs -o generate
+          python3 -m venv venv
+          venv/bin/pip -q install polars==2.1.0
+      - name: Compare production runtimes and both output tables
+        env:
+          POLARS_MAX_THREADS: 4
+        run: |
+          lscpu | grep -E 'Model name:|^CPU\(s\):|Thread\(s\) per core:'
+          "$RUNNER_TEMP/venv/bin/python" scripts/benchmark.py "$RUNNER_TEMP"

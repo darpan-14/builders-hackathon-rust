@@ -1,0 +1,17 @@
+[package]
+name = "shopping-sessions"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+license = "MIT"
+
+[dependencies]
+memchr = "2.8"
+memmap2 = "0.9"
+rayon = "1.12"
+rustc-hash = "2.1"
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
